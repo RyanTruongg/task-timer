@@ -42,12 +42,13 @@ function TaskCard(props) {
   const { task, deleteSelf, updateSelf, startTask, pauseTask, ...rest } = props;
   const currentTaskId = useSelector((state) => state.taskTimer.currentTaskId);
 
+  const isCurrentTask = task.id === currentTaskId;
+
   const cardBg = useColorModeValue("white", "gray.700");
-  const cardBorder = useColorModeValue("1px solid", "none");
 
   useEffect(() => {
     let timer;
-    if (task?.id === currentTaskId) {
+    if (isCurrentTask) {
       timer = setInterval(() => {
         if (task.elapsed < task.duration) {
           updateSelf({ elapsed: task.elapsed + 1 });
@@ -56,27 +57,20 @@ function TaskCard(props) {
 
       if (task.elapsed >= task.duration) {
         clearInterval(timer);
+        pauseTask();
       }
     }
     return () => {
       clearInterval(timer);
     };
-  }, [task, updateSelf, currentTaskId]);
+  }, [task, updateSelf, isCurrentTask, pauseTask]);
 
   const remainingTime = task.duration - task.elapsed;
 
   if (!task) return null;
 
   return (
-    <Box
-      w="100%"
-      bg={cardBg}
-      border={cardBorder}
-      borderColor="blue.100"
-      borderRadius={8}
-      overflow="hidden"
-      {...rest}
-    >
+    <Box w="100%" bg={cardBg} borderRadius={8} overflow="hidden" {...rest}>
       <Flex
         alignItems="center"
         justifyContent="space-between"
@@ -101,7 +95,7 @@ function TaskCard(props) {
         </Text>
 
         <ButtonGroup justifyContent="end" variant="outline">
-          {task.id === currentTaskId ? (
+          {isCurrentTask ? (
             <IconButton
               colorScheme="red"
               onClick={pauseTask}
@@ -110,6 +104,7 @@ function TaskCard(props) {
           ) : (
             <IconButton
               colorScheme="green"
+              disabled={task.elapsed >= task.duration}
               onClick={startTask}
               icon={<FaPlay />}
             />
@@ -136,13 +131,14 @@ function TaskCard(props) {
         </ButtonGroup>
       </Flex>
       <Progress
-        isAnimated
+        isAnimated={isCurrentTask}
         sx={{
           "&>[role=progressbar]": {
             animationDirection: "reverse",
           },
         }}
-        hasStripe
+        colorScheme={isCurrentTask ? "blue" : "gray"}
+        hasStripe={isCurrentTask}
         size="sm"
         value={(task.elapsed / task.duration) * 100}
       />
