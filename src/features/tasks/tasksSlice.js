@@ -1,11 +1,12 @@
 import { createSlice } from "@reduxjs/toolkit";
 import tasksAdapter from "./tasksAdapter";
 
-const { ids, entities } = JSON.parse(localStorage.getItem("tasks"));
+const tasks = JSON.parse(localStorage.getItem("tasks"));
 
 const initialState = tasksAdapter.getInitialState({
-  ids: ids,
-  entities: entities,
+  ids: [],
+  entities: {},
+  ...tasks,
 });
 
 export const tasksSlice = createSlice({
