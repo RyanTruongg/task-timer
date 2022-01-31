@@ -1,5 +1,7 @@
+import React, { useEffect } from "react";
 import { DeleteIcon, EditIcon, HamburgerIcon } from "@chakra-ui/icons";
 import {
+  Badge,
   Box,
   Button,
   ButtonGroup,
@@ -13,12 +15,14 @@ import {
   Text,
   useColorModeValue,
 } from "@chakra-ui/react";
-import React, { useEffect } from "react";
-import { FaClock, FaPause, FaPlay } from "react-icons/fa";
+import { FaPause, FaPlay } from "react-icons/fa";
+import { BsHourglassSplit } from "react-icons/bs";
+
 import { useSelector } from "react-redux";
 import { connect } from "react-redux";
 import { deleteTask, updateTask } from "../../features/tasks/tasksSlice";
 import { setCurrentTask } from "../../features/taskTimer/taskTimerSlice";
+import secondsToTime from "../../utils/secondToTime";
 
 const mapDispatchToProps = (dispatch, ownProps) => {
   return {
@@ -40,41 +44,45 @@ const mapDispatchToProps = (dispatch, ownProps) => {
 
 function TaskCard(props) {
   const { task, deleteSelf, updateSelf, startTask, pauseTask, ...rest } = props;
+
   const currentTaskId = useSelector((state) => state.taskTimer.currentTaskId);
-
   const isCurrentTask = task.id === currentTaskId;
+  const remainingTime = task.duration - task.elapsed;
 
-  const cardBg = useColorModeValue("white", "gray.700");
+  const cardBg = useColorModeValue("gray.200", "gray.700");
 
   useEffect(() => {
-    let timer;
-    if (isCurrentTask) {
-      timer = setInterval(() => {
-        if (task.elapsed < task.duration) {
-          updateSelf({ elapsed: task.elapsed + 1 });
-        }
-      }, 1000);
+    const timer =
+      isCurrentTask &&
+      setInterval(() => updateSelf({ elapsed: task.elapsed + 1 }), 1000);
 
-      if (task.elapsed >= task.duration) {
-        clearInterval(timer);
-        pauseTask();
-      }
+    if (isCurrentTask && task.elapsed >= task.duration) {
+      clearInterval(timer);
+      pauseTask();
+      const audio = new Audio("/alarm-clock-01.mp3");
+      audio.play();
     }
     return () => {
       clearInterval(timer);
     };
   }, [task, updateSelf, isCurrentTask, pauseTask]);
 
-  const remainingTime = task.duration - task.elapsed;
-
   if (!task) return null;
 
   return (
     <Box w="100%" bg={cardBg} borderRadius={8} overflow="hidden" {...rest}>
+      <Badge
+        textTransform="none"
+        colorScheme={isCurrentTask ? "orange" : "gray"}
+        marginLeft={4}
+      >
+        {secondsToTime(task.duration)}
+      </Badge>
       <Flex
         alignItems="center"
         justifyContent="space-between"
-        p={4}
+        px={4}
+        mb={4}
         width="100%"
         gap="4"
         flexDirection={["column", "row"]}
@@ -94,7 +102,11 @@ function TaskCard(props) {
           {task.name}
         </Text>
 
-        <ButtonGroup justifyContent="end" variant="outline">
+        <ButtonGroup
+          w={["100%", "auto"]}
+          justifyContent="end"
+          variant="outline"
+        >
           {isCurrentTask ? (
             <IconButton
               colorScheme="red"
@@ -110,9 +122,11 @@ function TaskCard(props) {
             />
           )}
 
-          <Button colorScheme="orange" leftIcon={<FaClock />}>
-            {(remainingTime / 3600) | 0}:{((remainingTime / 60) | 0) % 60}:
-            {remainingTime % 60}
+          <Button
+            colorScheme={isCurrentTask ? "orange" : "black"}
+            leftIcon={<BsHourglassSplit />}
+          >
+            {secondsToTime(remainingTime)}
           </Button>
 
           <Menu>
