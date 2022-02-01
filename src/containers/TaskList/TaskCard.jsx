@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { DeleteIcon, EditIcon, HamburgerIcon } from "@chakra-ui/icons";
+import { DeleteIcon, HamburgerIcon, RepeatClockIcon } from "@chakra-ui/icons";
 import {
   Badge,
   Box,
@@ -14,6 +14,7 @@ import {
   Progress,
   Text,
   useColorModeValue,
+  useToast,
 } from "@chakra-ui/react";
 import { FaPause, FaPlay } from "react-icons/fa";
 import { BsHourglassSplit } from "react-icons/bs";
@@ -23,6 +24,7 @@ import { connect } from "react-redux";
 import { deleteTask, updateTask } from "../../features/tasks/tasksSlice";
 import { setCurrentTask } from "../../features/taskTimer/taskTimerSlice";
 import secondsToTime from "../../utils/secondToTime";
+import alarmSound from "../../utils/alarmSound";
 
 const mapDispatchToProps = (dispatch, ownProps) => {
   return {
@@ -45,6 +47,8 @@ const mapDispatchToProps = (dispatch, ownProps) => {
 function TaskCard(props) {
   const { task, deleteSelf, updateSelf, startTask, pauseTask, ...rest } = props;
 
+  const toast = useToast();
+
   const currentTaskId = useSelector((state) => state.taskTimer.currentTaskId);
   const isCurrentTask = task.id === currentTaskId;
   const remainingTime = task.duration - task.elapsed;
@@ -52,20 +56,21 @@ function TaskCard(props) {
   const cardBg = useColorModeValue("gray.200", "gray.700");
 
   useEffect(() => {
-    const timer =
-      isCurrentTask &&
-      setInterval(() => updateSelf({ elapsed: task.elapsed + 1 }), 1000);
-
     if (isCurrentTask && task.elapsed >= task.duration) {
-      clearInterval(timer);
       pauseTask();
-      const audio = new Audio("/alarm-clock-01.mp3");
-      audio.play();
+
+      alarmSound.currentTime = 0;
+      alarmSound.play();
+
+      toast({
+        title: "Time up!",
+        onCloseComplete: () => alarmSound.pause(),
+        isClosable: true,
+        status: "warning",
+        position: "top",
+      });
     }
-    return () => {
-      clearInterval(timer);
-    };
-  }, [task, updateSelf, isCurrentTask, pauseTask]);
+  }, [isCurrentTask, pauseTask, task.duration, task.elapsed, toast]);
 
   if (!task) return null;
 
@@ -107,18 +112,28 @@ function TaskCard(props) {
           justifyContent="end"
           variant="outline"
         >
-          {isCurrentTask ? (
+          {isCurrentTask && (
             <IconButton
               colorScheme="red"
               onClick={pauseTask}
               icon={<FaPause />}
             />
-          ) : (
+          )}
+
+          {!isCurrentTask && remainingTime > 0 && (
             <IconButton
               colorScheme="green"
               disabled={task.elapsed >= task.duration}
               onClick={startTask}
               icon={<FaPlay />}
+            />
+          )}
+
+          {remainingTime <= 0 && (
+            <IconButton
+              colorScheme="orange"
+              onClick={() => updateSelf({ elapsed: 0 })}
+              icon={<RepeatClockIcon />}
             />
           )}
 
@@ -136,7 +151,6 @@ function TaskCard(props) {
               variant="link"
             />
             <MenuList>
-              <MenuItem icon={<EditIcon />}>Edit</MenuItem>
               <MenuItem onClick={deleteSelf} icon={<DeleteIcon />}>
                 Delete
               </MenuItem>
