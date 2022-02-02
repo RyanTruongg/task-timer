@@ -1,5 +1,4 @@
 import React, { useEffect } from "react";
-import { DeleteIcon, HamburgerIcon, RepeatClockIcon } from "@chakra-ui/icons";
 import {
   Badge,
   Box,
@@ -11,11 +10,29 @@ import {
   MenuButton,
   MenuItem,
   MenuList,
+  Modal,
+  ModalCloseButton,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+  ModalOverlay,
+  Popover,
+  PopoverBody,
+  PopoverContent,
+  PopoverTrigger,
+  Portal,
   Progress,
   Text,
   useColorModeValue,
+  useDisclosure,
   useToast,
 } from "@chakra-ui/react";
+import {
+  DeleteIcon,
+  HamburgerIcon,
+  RepeatClockIcon,
+  EditIcon,
+} from "@chakra-ui/icons";
 import { FaPause, FaPlay } from "react-icons/fa";
 import { BsHourglassSplit } from "react-icons/bs";
 
@@ -25,6 +42,7 @@ import { deleteTask, updateTask } from "../../features/tasks/tasksSlice";
 import { setCurrentTask } from "../../features/taskTimer/taskTimerSlice";
 import secondsToTime from "../../utils/secondToTime";
 import alarmSound from "../../utils/alarmSound";
+import TaskForm from "./TaskForm";
 
 const mapDispatchToProps = (dispatch, ownProps) => {
   return {
@@ -48,6 +66,7 @@ function TaskCard(props) {
   const { task, deleteSelf, updateSelf, startTask, pauseTask, ...rest } = props;
 
   const toast = useToast();
+  const modal = useDisclosure();
 
   const currentTaskId = useSelector((state) => state.taskTimer.currentTaskId);
   const isCurrentTask = task.id === currentTaskId;
@@ -72,6 +91,27 @@ function TaskCard(props) {
     }
   }, [isCurrentTask, pauseTask, task.duration, task.elapsed, toast]);
 
+  const onUpdateTask = (data) => {
+    const duration = (data["hours"] * 60 + data["minutes"]) * 60;
+
+    const newTask = {
+      name: data["name"],
+      duration: duration,
+      elapsed: Math.min(task.elapsed, duration),
+    };
+
+    updateSelf(newTask);
+
+    toast({
+      duration: 1000,
+      isClosable: true,
+      title: "Task updated",
+      status: "success",
+    });
+
+    modal.onClose();
+  };
+
   if (!task) return null;
 
   return (
@@ -95,6 +135,7 @@ function TaskCard(props) {
         <Text
           contentEditable
           suppressContentEditableWarning
+          placeholder="Unnamed Task"
           minW={["100%", "0"]}
           maxW="100%"
           flex="1 0 0"
@@ -119,8 +160,7 @@ function TaskCard(props) {
               icon={<FaPause />}
             />
           )}
-
-          {!isCurrentTask && remainingTime > 0 && (
+          {!isCurrentTask && (remainingTime > 0 || task.duration === 0) && (
             <IconButton
               colorScheme="green"
               disabled={task.elapsed >= task.duration}
@@ -128,21 +168,64 @@ function TaskCard(props) {
               icon={<FaPlay />}
             />
           )}
-
-          {remainingTime <= 0 && (
+          {remainingTime <= 0 && task.duration !== 0 && (
             <IconButton
               colorScheme="orange"
               onClick={() => updateSelf({ elapsed: 0 })}
               icon={<RepeatClockIcon />}
             />
           )}
-
-          <Button
-            colorScheme={isCurrentTask ? "orange" : "black"}
-            leftIcon={<BsHourglassSplit />}
-          >
-            {secondsToTime(remainingTime)}
-          </Button>
+          <Popover placement="top" autoFocus>
+            <PopoverTrigger>
+              <Button
+                colorScheme={isCurrentTask ? "orange" : "black"}
+                leftIcon={<BsHourglassSplit />}
+              >
+                {secondsToTime(remainingTime)}
+              </Button>
+            </PopoverTrigger>
+            <Portal>
+              <PopoverContent w="auto" _focus={{ shadow: "none" }}>
+                <PopoverBody>
+                  <ButtonGroup variant="outline" colorScheme="orange">
+                    <IconButton
+                      onClick={() => {
+                        updateSelf({ elapsed: 0 });
+                        pauseTask();
+                      }}
+                      icon={<RepeatClockIcon />}
+                    />
+                    <Button
+                      p={2}
+                      onClick={() => {
+                        updateSelf({
+                          duration: Math.max(task.duration - 300, 0),
+                          elapsed:
+                            Math.max(task.duration - 300, 0) === 0
+                              ? 0
+                              : task.elapsed,
+                        });
+                        pauseTask();
+                      }}
+                    >
+                      -5m
+                    </Button>
+                    <Button
+                      p={2}
+                      onClick={() => {
+                        updateSelf({
+                          duration: task.duration + 300,
+                        });
+                        pauseTask();
+                      }}
+                    >
+                      +5m
+                    </Button>
+                  </ButtonGroup>
+                </PopoverBody>
+              </PopoverContent>
+            </Portal>
+          </Popover>
 
           <Menu>
             <MenuButton
@@ -151,6 +234,9 @@ function TaskCard(props) {
               variant="link"
             />
             <MenuList>
+              <MenuItem onClick={modal.onOpen} icon={<EditIcon />}>
+                Edit
+              </MenuItem>
               <MenuItem onClick={deleteSelf} icon={<DeleteIcon />}>
                 Delete
               </MenuItem>
@@ -170,6 +256,32 @@ function TaskCard(props) {
         size="sm"
         value={(task.elapsed / task.duration) * 100}
       />
+
+      {/* Modal */}
+
+      <Modal
+        isOpen={modal.isOpen}
+        onClose={() => {
+          modal.onClose();
+        }}
+      >
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Edit task</ModalHeader>
+          <ModalCloseButton />
+          <TaskForm
+            defaultValues={task}
+            onSubmit={onUpdateTask}
+            submitBtnRender={
+              <ModalFooter>
+                <Button type="submit" colorScheme="green" size="lg" w="100%">
+                  Save
+                </Button>
+              </ModalFooter>
+            }
+          />
+        </ModalContent>
+      </Modal>
     </Box>
   );
 }
