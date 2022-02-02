@@ -1,0 +1,8 @@
+[placeholder]:empty::before {
+  content: attr(placeholder);
+  color: #777;
+}
+
+[placeholder]:empty:focus::before {
+  content: "";
+}
